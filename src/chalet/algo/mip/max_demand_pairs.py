@@ -15,7 +15,6 @@ import chalet.algo.mip.helper as helper
 import chalet.algo.util as util
 from chalet.common.constants import EPS, MIP_BEST_OBJ_VAL, MIP_OBJ_VAL, ROUND_OFF_FACTOR
 from chalet.log_config.config import set_mip_log_file
-from chalet.model.input.node_type import NodeType
 from chalet.model.processed_nodes import Nodes
 from chalet.model.processed_od_pairs import OdPairs
 
@@ -35,7 +34,7 @@ def max_demand_pairs(
     log_dir: str,
 ):
     """Maximize covered demand on OD pairs within the cost budget."""
-    candidates, subgraph_indices, covered_demand = helper.get_subgraph_indices_and_candidates(
+    candidates, subgraph_indices, covered_demand, station_capacities = helper.get_subgraph_indices_and_candidates(
         od_pairs, nodes, subgraphs
     )
 
@@ -49,8 +48,11 @@ def max_demand_pairs(
     )
 
     # fast heuristic for starting solution
-    _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, cost_budget)
+    _construct_initial_solution(
+        model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, cost_budget, station_capacities
+    )
 
+    # TODO pass on capacities
     demand_sol, station_sol = _set_model_attributes_and_solve(
         model,
         demand_vars,
@@ -99,28 +101,26 @@ def _build_model(
     return model
 
 
-def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, cost_budget):
+def _construct_initial_solution(
+    model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, cost_budget, station_capacities: pd.Series
+):
     logger.info("Constructing simple initial solution.")
     demand_dict = dict(zip(subgraph_indices, [0] * len(subgraph_indices)))
     station_dict = dict(zip(candidates.index, [0] * len(candidates)))
     sol: List = []
     init_cost = 0
     init_demand = 0
-    if Nodes.capacity in nodes.columns:
-        station_capacity_series = nodes.loc[nodes[Nodes.type] == NodeType.STATION, Nodes.capacity].copy()
-    else:
-        station_index = nodes.loc[nodes[Nodes.type] == NodeType.STATION].index
-        station_capacity_series = pd.Series(float("inf"), station_index)
+    residual_station_capacities = station_capacities.copy()
     sorted_index = od_pairs.loc[subgraph_indices].sort_values(OdPairs.demand, ascending=False).index
     for index in sorted_index:
         demand = od_pairs.at[index, OdPairs.demand]
-        excluded_nodes = list(station_capacity_series.loc[station_capacity_series < demand].index)
+        excluded_nodes = list(residual_station_capacities.loc[residual_station_capacities < demand].index)
         path, path_cost = helper.get_cheapest_path(od_pairs, index, subgraphs, nodes, sol, excluded_nodes)
         if init_cost + path_cost > cost_budget:
             continue
         for u in path:
             if util.is_station(u, nodes):  # adjust remaining capacity of used stations
-                station_capacity_series[u] -= demand
+                residual_station_capacities[u] -= demand
             if helper.is_candidate(u, nodes) and not station_dict[u]:  # save new nodes to solution
                 station_dict[u] = 1
                 sol.append(u)

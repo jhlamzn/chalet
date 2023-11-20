@@ -22,6 +22,7 @@ def test_remove_redundancy(value, expected):
             Nodes.name: ["node1", "node2", "node3", "node4"],
             Nodes.cost: 4 * [1.0],
             Nodes.real: 4 * [False],
+            Nodes.capacity: 4 * [float("inf")],
         },
         index=[1, 2, 3, 4],
     )
@@ -30,7 +31,6 @@ def test_remove_redundancy(value, expected):
             OdPairs.origin_id: [1, 2, 3],
             OdPairs.destination_id: [2, 3, 4],
             OdPairs.demand: [10.0, 20.0, 30.0],
-            OdPairs.distance: [10.0, 40.0, 60.0],
             OdPairs.distance: [10.0, 40.0, 60.0],
             OdPairs.legs: 3 * [1],
             OdPairs.max_time: [40.0, 80.0, 120.0],

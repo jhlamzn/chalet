@@ -32,5 +32,8 @@ class PreprocessNodes(PreprocessData):
 
         nodes[Nodes.real] = False  # marks the active stations -> output
         nodes.loc[~is_candidate, Nodes.real] = True  # non-candidate stations are active
+        # set infinity as default station capacity
         if Node.capacity in nodes.columns:
-            nodes.loc[nodes[Node.capacity].isnull] = float("inf")  # set infinity as default capacity
+            nodes[Nodes.capacity] = nodes[Node.capacity].fillna(value=float("inf"))
+        else:
+            nodes[Nodes.capacity] = float("inf")

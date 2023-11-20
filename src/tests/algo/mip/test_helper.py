@@ -18,6 +18,7 @@ SUB_GRAPHS = MipData.sub_graphs
 OD_PAIRS = MipData.od_pairs
 STATION_VARS = MipData.station_vars
 DEMAND_VARS = MipData.demand_vars
+STATION_CAPACITIES = MipData.station_capacities
 
 
 class TestMipHelper(unittest.TestCase):
@@ -25,7 +26,7 @@ class TestMipHelper(unittest.TestCase):
 
     @patch(get_path_module(util.check_pair_coverage))
     def test_get_subgraph_indices_and_candidates(self, mock_pair_coverage):
-        candidates, indices, demand = helper.get_subgraph_indices_and_candidates(
+        candidates, indices, demand, station_capacities = helper.get_subgraph_indices_and_candidates(
             MipData.od_pairs_feasible, NODES, SUB_GRAPHS
         )
         self.assertListEqual(indices, [0])

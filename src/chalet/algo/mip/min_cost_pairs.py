@@ -8,6 +8,7 @@ from typing import List, Set
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 import xpress as xp
 
 import chalet.algo.csp as csp
@@ -26,7 +27,7 @@ STATION = "station"
 
 def min_cost_pairs(nodes, subgraphs, od_pairs, tol, max_run_time, log_dir):
     """Minimize cost of full OD pair demand coverage."""
-    candidates, subgraph_indices, covered_demand = helper.get_subgraph_indices_and_candidates(
+    candidates, subgraph_indices, covered_demand, station_capacities = helper.get_subgraph_indices_and_candidates(
         od_pairs, nodes, subgraphs
     )
 
@@ -37,8 +38,11 @@ def min_cost_pairs(nodes, subgraphs, od_pairs, tol, max_run_time, log_dir):
     model = _build_model(candidates, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, log_dir)
 
     # fast heuristic for starting solution
-    _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, station_vars)
+    _construct_initial_solution(
+        model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, station_vars, station_capacities
+    )
 
+    # TODO pass on capacities
     station_sol = _set_model_attributes_and_solve(
         model,
         station_vars,
@@ -77,13 +81,21 @@ def _build_model(candidates, nodes, subgraphs, od_pairs, subgraph_indices, stati
     return model
 
 
-def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, station_vars):
+def _construct_initial_solution(
+    model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, station_vars, station_capacities: pd.Series
+):
     logger.info("Running heuristic for initial solution.")
     sol_set: Set = set()
+    residual_station_capacities = station_capacities.copy()
     for k in subgraph_indices:
-        path, path_cost = helper.get_cheapest_path(od_pairs, k, subgraphs, nodes, sol_set)
-        candidate_nodes = [u for u in path if helper.is_candidate(u, nodes)]
-        sol_set.update(candidate_nodes)
+        demand = od_pairs.at[k, OdPairs.demand]
+        excluded_nodes = list(residual_station_capacities.loc[residual_station_capacities < demand].index)
+        path, path_cost = helper.get_cheapest_path(od_pairs, k, subgraphs, nodes, sol_set, excluded_nodes)
+        for u in path:
+            if util.is_station(u, nodes):  # adjust remaining capacity of used stations
+                residual_station_capacities[u] -= demand
+            if helper.is_candidate(u, nodes):  # save new nodes to solution
+                sol_set.add(u)
 
     init_sol = util.remove_redundancy(sol_set, nodes, subgraphs, od_pairs)
     init_sol_vec = np.zeros(len(candidates))

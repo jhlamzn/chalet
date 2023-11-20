@@ -21,6 +21,7 @@ DEMAND_SOL = MipData.demand_sol
 STATION_SOL = MipData.station_sol
 DEMAND_VARS = MipData.demand_vars
 STATION_VARS = MipData.station_vars
+STATION_CAPACITIES = MipData.station_capacities
 
 
 class TestMipMaxDemandPairs(unittest.TestCase):
@@ -28,7 +29,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
 
     @patch(
         get_path_module(helper.get_subgraph_indices_and_candidates),
-        return_value=(pd.DataFrame(), [0], 0.0),
+        return_value=(pd.DataFrame(), [0], 0.0, STATION_CAPACITIES),
     )
     def test_max_demand_pairs_with_no_candidate_nodes(self, mock_indices_and_candidates):
         demand, cost = max_demand.max_demand_pairs(pd.DataFrame(), [], pd.DataFrame(), 0.0, 0.0, 1, "")
@@ -38,7 +39,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
 
     @patch(
         get_path_module(helper.get_subgraph_indices_and_candidates),
-        return_value=(CANDIDATES, [0], 10.0),
+        return_value=(CANDIDATES, [0], 10.0, STATION_CAPACITIES),
     )
     def test_max_demand_pairs_with_covered_demand(self, mock_indices_and_candidates):
         with patch.multiple(
@@ -83,7 +84,9 @@ class TestMipMaxDemandPairs(unittest.TestCase):
     @patch(get_path_module(helper.is_candidate), return_value=True)
     def test_construct_initial_solution_with_station_nodes(self, mock_is_candidate, mock_path_attributes):
         model = Mock()
-        max_demand._construct_initial_solution(model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, 10.0)
+        max_demand._construct_initial_solution(
+            model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, 10.0, STATION_CAPACITIES
+        )
         model.addmipsol.assert_called_with([1, 1, 1])
 
     @patch(get_path_module(helper.get_cheapest_path), return_value=([0, 1], 11.0))
@@ -92,14 +95,18 @@ class TestMipMaxDemandPairs(unittest.TestCase):
         model = Mock()
         nodes = NODES.copy()
         nodes[Nodes.cost] = [11, 15, 20]
-        max_demand._construct_initial_solution(model, CANDIDATES, nodes, OD_PAIRS, [0], SUB_GRAPHS, 10.0)
+        max_demand._construct_initial_solution(
+            model, CANDIDATES, nodes, OD_PAIRS, [0], SUB_GRAPHS, 10.0, STATION_CAPACITIES
+        )
         model.addmipsol.assert_called_with([0, 0, 0])
 
     @patch(get_path_module(helper.get_cheapest_path), return_value=([0, 1], 20.0))
     @patch(get_path_module(helper.is_candidate), return_value=True)
     def test_construct_initial_solution_with_higher_path_cost(self, mock_is_candidate, mock_path_attributes):
         model = Mock()
-        max_demand._construct_initial_solution(model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, 10.0)
+        max_demand._construct_initial_solution(
+            model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, 10.0, STATION_CAPACITIES
+        )
         model.addmipsol.assert_called_with([0, 0, 0])
 
     @patch(get_path_module(util.get_feasible_path), return_value=[0])

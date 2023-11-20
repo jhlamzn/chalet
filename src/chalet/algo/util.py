@@ -42,15 +42,19 @@ class BranchAndBoundInfo:
 
 def remove_redundancy(solution, nodes, subgraphs, od_pairs, ignore=None):
     """Reduces the given solution container of candidate stations to a minimal subset that covers the same OD pairs.
-
     All OD pairs that are (infeasible/have zero demand/are flagged as 'ignore') are ignored.
+    If the instance has non-trivial station capacities, the function only returns the input solution.
     :param solution: Candidate station nodes that are in the solution (iterable).
     :param nodes: Nodes of the network
     :param subgraphs: Required columns: ORIG_ID, DEST_ID, MAX_TIME, MAX_ROAD_TIME, FEASIBLE, DEMAND
     :param od_pairs: Origin destination pairs
     :param ignore: Optional list with Boolean flag for each OD pair (True if OD pair should be ignored).
-    :return: Non redundant candidate stations
+    :return: Non-redundant candidate stations (only for problems without station capacities)
     """
+    min_capacity = nodes.loc[nodes[Nodes.type] == NodeType.STATION, Nodes.capacity].min()
+    if min_capacity < float("inf"):  # ignore redundancy in case of station capacities
+        return list(solution)
+
     if ignore is None:
         ignore = [False] * len(od_pairs)
     solution_dict = dict(zip(solution, [True] * len(solution)))
@@ -66,11 +70,11 @@ def remove_redundancy(solution, nodes, subgraphs, od_pairs, ignore=None):
     def is_candidate_node(n):
         return nodes.at[n, Nodes.cost] > 0
 
-    # determine initial paths
     def is_real_filter(u):
         return is_dummy(u) or not is_candidate_node(u) or is_active(u)
 
     paths = np.empty(len(subgraphs), dtype=object)
+    # determine initial paths
     for k in subgraph_indices:
         path = get_feasible_path(subgraphs[k], k, od_pairs, is_real_filter)
         if not path:
@@ -120,10 +124,10 @@ def _update_substitute_paths(
     return solution
 
 
-def check_pair_coverage(nodes, subgraphs, od_pairs):
+def check_pair_coverage(nodes, subgraphs, od_pairs) -> pd.Series:
     """Check for each OD pair and subgraph specified by existing nodes if a time-feasible route exists.
 
-    Add coverage flags in column "COVERED" of od_pairs.
+    Add coverage flags in column "COVERED" of od_pairs. Returns series of residual station capacities.
     """
     num_pairs = len(od_pairs)
     od_pairs[OdPairs.covered] = False
@@ -131,15 +135,26 @@ def check_pair_coverage(nodes, subgraphs, od_pairs):
     def is_candidate(n):
         return nodes.at[n, Nodes.cost] > EPS
 
-    def filter_func(u):
+    def is_active(u):
         return is_dummy(u) or nodes.at[u, Nodes.real] or not is_candidate(u)
 
+    station_capacity_series = nodes.loc[nodes[Nodes.type] == NodeType.STATION, Nodes.capacity].copy()
     for k in range(num_pairs):
+        demand = od_pairs.at[k, OdPairs.demand]
+
+        def filter_func(u):
+            return is_active(u) and (not is_station(u, nodes) or station_capacity_series[u] >= demand)
+
         path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
+        for u in path:
+            if is_station(u, nodes):
+                station_capacity_series[u] -= demand
 
         od_pairs.at[k, OdPairs.covered] = True
+
+    return station_capacity_series
 
 
 def remove_redundant_stations(nodes, subgraphs, od_pairs):
@@ -763,15 +778,20 @@ def calc_station_stats(
     def is_real_node(u):
         return (u < 0) or nodes.at[u, Nodes.real]  # negation is remaining candidate (not dummy and not real)
 
-    def filter_func(u):
+    def is_active(u):
         return is_real_node(u) or not is_candidate(u)
 
     od_pairs[OdPairs.stations] = ""
     od_pairs[OdPairs.fuel_stops] = 0
     od_pairs[OdPairs.route_distance] = float("inf")
     od_pairs[OdPairs.route_time] = float("inf")
+    station_capacity_series = nodes.loc[nodes[Nodes.type] == NodeType.STATION, Nodes.capacity].copy()
     for k in range(num_pairs):
         demand = od_pairs.at[k, OdPairs.demand]
+
+        def filter_func(u):
+            return is_active(u) and (not is_station(u, nodes) or station_capacity_series[u] >= demand)
+
         path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
@@ -792,6 +812,7 @@ def calc_station_stats(
 
             # OD pair data
             nodes.at[node, Nodes.demand] += demand
+            station_capacity_series[node] -= demand
 
             if path[n + 1] < 0:  # if station has a dummy node
                 out_node, next_node = path[n + 1], path[n + 2]

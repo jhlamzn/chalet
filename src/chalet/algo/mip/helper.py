@@ -22,7 +22,7 @@ def get_subgraph_indices_and_candidates(od_pairs: pd.DataFrame, nodes: pd.DataFr
     """Get candidate nodes, subgraph indices and covered demand from od pairs."""
     is_infeasible = ~od_pairs[OdPairs.feasible]
     is_required = od_pairs[OdPairs.demand] > EPS
-    util.check_pair_coverage(nodes, subgraphs, od_pairs)
+    residual_station_capacities = util.check_pair_coverage(nodes, subgraphs, od_pairs)
     covered_demand = od_pairs.loc[od_pairs[OdPairs.covered], OdPairs.demand].sum()
     is_covered = od_pairs[OdPairs.covered]
 
@@ -31,7 +31,7 @@ def get_subgraph_indices_and_candidates(od_pairs: pd.DataFrame, nodes: pd.DataFr
     ]
 
     candidates = nodes.loc[nodes[Nodes.cost] > EPS]
-    return candidates, subgraph_indices, covered_demand
+    return candidates, subgraph_indices, covered_demand, residual_station_capacities
 
 
 def initialize_separator_constraints(model, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, pair_vars=None):

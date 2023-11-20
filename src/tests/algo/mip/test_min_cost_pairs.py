@@ -19,6 +19,7 @@ CANDIDATES = MipData.candidates
 NODES = MipData.nodes
 OD_PAIRS = MipData.od_pairs
 SUB_GRAPHS = MipData.sub_graphs
+STATION_CAPACITIES = MipData.station_capacities
 
 
 class TestMipMinCostPairs(unittest.TestCase):
@@ -26,7 +27,7 @@ class TestMipMinCostPairs(unittest.TestCase):
 
     @patch(
         get_path_module(helper.get_subgraph_indices_and_candidates),
-        return_value=(pd.DataFrame(), [0], 0.0),
+        return_value=(pd.DataFrame(), [0], 0.0, STATION_CAPACITIES),
     )
     def test_min_cost_pairs_with_no_candidate_nodes(self, mock_indices_and_candidates):
         demand, cost = min_cost.min_cost_pairs(pd.DataFrame(), [], pd.DataFrame(), 0.0, 0.0, "")
@@ -36,7 +37,7 @@ class TestMipMinCostPairs(unittest.TestCase):
 
     @patch(
         get_path_module(helper.get_subgraph_indices_and_candidates),
-        return_value=(CANDIDATES, [0], 10.0),
+        return_value=(CANDIDATES, [0], 10.0, STATION_CAPACITIES),
     )
     @patch(get_path_module(remove_redundant_stations), return_value=5.0)
     def test_min_cost_pairs_with_covered_demand(self, mock_remove_stations, mock_indices_and_candidates):
@@ -66,7 +67,9 @@ class TestMipMinCostPairs(unittest.TestCase):
     def test_construct_initial_solution(self, mock_redundancy, mock_is_candidate, mock_path_attributes):
         model = Mock()
         model.getIndex.return_value = 0
-        min_cost._construct_initial_solution(model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, STATION_VARS)
+        min_cost._construct_initial_solution(
+            model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, STATION_VARS, STATION_CAPACITIES
+        )
         model.addmipsol.assert_called_once()
 
     @patch(get_path_module(helper.set_model_controls))
