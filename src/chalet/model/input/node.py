@@ -26,8 +26,11 @@ class Node(BaseCsvFile):
     # Longitude of a station, needed for plotting
     longitude = "LONGITUDE"
 
-    # Name of the node
+    # Name of the node (optional)
     name = "NAME"
+
+    # Node capacity in terms of upper limit on sum of demand
+    capacity = "CAPACITY"
 
     @staticmethod
     def get_file_name() -> str:
@@ -45,5 +48,6 @@ class Node(BaseCsvFile):
                 Node.latitude: Column(float, required=False, coerce=True),
                 Node.longitude: Column(float, required=False, coerce=True),
                 Node.name: Column(str, required=False, nullable=True, coerce=True),
+                Node.capacity: Column(float, Check.ge(0), required=False, nullable=True, coerce=True),
             }
         )

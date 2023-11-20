@@ -14,6 +14,7 @@ class Nodes:
     latitude = Node.latitude
     longitude = Node.longitude
     name = Node.name
+    capacity = Node.capacity
     real = "REAL"
     energy = "ENERGY"
     demand = "DEMAND"
