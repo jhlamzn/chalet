@@ -110,13 +110,17 @@ def _add_separator(
         separator_set.update(separator)
 
 
-def get_cheapest_path(od_pairs, index, subgraphs, nodes, sol_set):
+def get_cheapest_path(od_pairs, index, subgraphs, nodes, sol_set, excluded_nodes=None):
     orig, dest = od_pairs.at[index, OdPairs.origin_id], od_pairs.at[index, OdPairs.destination_id]
     max_time, max_road_time = (
         od_pairs.at[index, OdPairs.max_time],
         od_pairs.at[index, OdPairs.max_road_time],
     )
     sub_graph = subgraphs[index]
+
+    if excluded_nodes is not None:
+        sub_graph = sub_graph.copy()
+        sub_graph.remove_nodes_from(excluded_nodes)
 
     nx.set_node_attributes(sub_graph, dict(zip(sol_set, [0] * len(sol_set))), Nodes.cost)
     path, path_cost = csp.time_feasible_cheapest_path(sub_graph, orig, dest, max_road_time, max_time)

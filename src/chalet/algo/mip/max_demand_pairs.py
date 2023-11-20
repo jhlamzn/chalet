@@ -15,6 +15,7 @@ import chalet.algo.mip.helper as helper
 import chalet.algo.util as util
 from chalet.common.constants import EPS, MIP_BEST_OBJ_VAL, MIP_OBJ_VAL, ROUND_OFF_FACTOR
 from chalet.log_config.config import set_mip_log_file
+from chalet.model.input.node_type import NodeType
 from chalet.model.processed_nodes import Nodes
 from chalet.model.processed_od_pairs import OdPairs
 
@@ -105,17 +106,24 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
     sol: List = []
     init_cost = 0
     init_demand = 0
+    if Nodes.capacity in nodes.columns:
+        station_capacity_series = nodes.loc[nodes[Nodes.type] == NodeType.STATION, Nodes.capacity].copy()
+    else:
+        station_index = nodes.loc[nodes[Nodes.type] == NodeType.STATION].index
+        station_capacity_series = pd.Series(float("inf"), station_index)
     sorted_index = od_pairs.loc[subgraph_indices].sort_values(OdPairs.demand, ascending=False).index
     for index in sorted_index:
         demand = od_pairs.at[index, OdPairs.demand]
-        path, path_cost = helper.get_cheapest_path(od_pairs, index, subgraphs, nodes, sol)
+        excluded_nodes = list(station_capacity_series.loc[station_capacity_series < demand].index)
+        path, path_cost = helper.get_cheapest_path(od_pairs, index, subgraphs, nodes, sol, excluded_nodes)
         if init_cost + path_cost > cost_budget:
             continue
-
-        new_nodes = [u for u in path if helper.is_candidate(u, nodes) and not station_dict[u]]
-        for u in new_nodes:
-            station_dict[u] = 1
-            sol.append(u)
+        for u in path:
+            if util.is_station(u, nodes):  # adjust remaining capacity of used stations
+                station_capacity_series[u] -= demand
+            if helper.is_candidate(u, nodes) and not station_dict[u]:  # save new nodes to solution
+                station_dict[u] = 1
+                sol.append(u)
         init_cost += path_cost
         demand_dict[index] = 1
         init_demand += demand

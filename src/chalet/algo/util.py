@@ -710,6 +710,10 @@ def is_candidate(node, nodes):
     return not is_real(node, nodes)
 
 
+def is_station(node, nodes_df):
+    return not is_dummy(node) and nodes_df.at[node, Nodes.type] == NodeType.STATION
+
+
 def check_solution(nodes, subgraphs, od_pairs, claimed_demand, claimed_cost):
     """Check output cost and demand."""
     logger.info("Performing solution check..")

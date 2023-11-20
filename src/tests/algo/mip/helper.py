@@ -28,7 +28,14 @@ class MipData:
         }
     )
 
-    nodes = pd.DataFrame(data={Nodes.id: [0, 1, 2], Nodes.cost: [1, 2, 3], Nodes.real: [False, False, False]})
+    nodes = pd.DataFrame(
+        data={
+            Nodes.id: [0, 1, 2],
+            Nodes.cost: [1, 2, 3],
+            Nodes.real: [False, False, False],
+            Nodes.type: [NodeType.STATION, NodeType.STATION, NodeType.STATION],
+        }
+    )
 
     od_pairs = pd.DataFrame(
         data={
