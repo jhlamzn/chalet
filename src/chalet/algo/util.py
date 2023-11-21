@@ -187,6 +187,7 @@ def separate_lazy_constraints(
     subgraph_indices,
     subgraphs,
     bb_info,
+    station_capacities,
     demand_vars=None,
     cost_budget=float("inf"),
 ):
@@ -293,6 +294,7 @@ def separate_lazy_constraints(
             station_vars,
             y,
             current_node,
+            station_capacities,
             demand_vars=demand_vars,
             cost_budget=cost_budget,
         )
@@ -325,6 +327,7 @@ def _primal_heuristic(
     station_vars,
     y,
     current_node,
+    station_capacities: pd.Series,
     demand_vars=None,
     cost_budget=float("inf"),
 ):
@@ -339,6 +342,7 @@ def _primal_heuristic(
 
     total_cost = 0.0
     station_sol_dict = dict(zip(station_vars.keys(), [0] * len(station_vars)))
+    residual_station_capacities = station_capacities.copy()
     for k in subgraph_indices:
         sub_graph = subgraphs[k]
         orig, dest = od_pairs.at[k, OdPairs.origin_id], od_pairs.at[k, OdPairs.destination_id]
@@ -346,6 +350,12 @@ def _primal_heuristic(
             od_pairs.at[k, OdPairs.max_time],
             od_pairs.at[k, OdPairs.max_road_time],
         )
+        demand = od_pairs.at[k, OdPairs.demand]
+
+        def filter_func(u):
+            return not is_station(u, nodes) or residual_station_capacities[u] >= demand
+
+        sub_graph = nx.subgraph_view(sub_graph, filter_node=filter_func)  # filter out exhausted stations
 
         candidate_nodes = [u for u in sub_graph if is_candidate(u, nodes)]
         reduced_costs = [
@@ -363,6 +373,8 @@ def _primal_heuristic(
         path_cost = 0.0
         new_stations = []
         for u in path:
+            if is_station(u, nodes):
+                residual_station_capacities[u] -= demand  # update station capacity
             if is_candidate(u, nodes) and not station_sol_dict[u]:
                 station_sol_dict[u] = 1
                 path_cost += nodes.at[u, Nodes.cost]

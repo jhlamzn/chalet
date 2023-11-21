@@ -76,6 +76,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
             5.0,
             0.0,
             2.0,
+            STATION_CAPACITIES,
         )
         model.getSolution.assert_called()
         model.solve.assert_called_once()
@@ -119,7 +120,9 @@ class TestMipMaxDemandPairs(unittest.TestCase):
 
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
-        max_demand._check_int_sol(problem, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS)
+        max_demand._check_int_sol(
+            problem, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS, STATION_CAPACITIES
+        )
         problem.loadmipsol.assert_called_once()
 
     @patch(get_path_module(util.get_feasible_path), return_value=None)
@@ -132,14 +135,16 @@ class TestMipMaxDemandPairs(unittest.TestCase):
 
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
-        max_demand._check_int_sol(problem, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS)
+        max_demand._check_int_sol(
+            problem, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS, STATION_CAPACITIES
+        )
         problem.loadmipsol.assert_not_called()
 
     def test_pre_check_int_sol_without_soltype(self):
         model = Mock()
         problem = Mock()
         check, cutoff = max_demand._pre_check_int_sol(
-            problem, 0, 0, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS
+            problem, 0, 0, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS, STATION_CAPACITIES
         )
         self.assertFalse(check)
         self.assertEqual(cutoff, 0)

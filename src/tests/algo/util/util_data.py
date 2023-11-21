@@ -16,6 +16,7 @@ class UtilData:
 
     demand_vars = xp.vars([0], name="demand", vartype=xp.binary)
     station_vars = xp.vars([0, 1], name="station", vartype=xp.binary)
+    station_capacities = pd.Series(data=[float("inf"), float("inf")], index=[0, 1], name=Nodes.capacity)
 
     candidates = pd.DataFrame(
         data={
@@ -25,7 +26,15 @@ class UtilData:
         }
     )
 
-    nodes = pd.DataFrame(data={Nodes.id: [0, 1, 2], Nodes.cost: [1, 2, 3], Nodes.real: [True, True, False]})
+    nodes = pd.DataFrame(
+        data={
+            Nodes.id: [0, 1, 2],
+            Nodes.cost: [1, 2, 3],
+            Nodes.real: [True, True, False],
+            Nodes.type: [NodeType.STATION, NodeType.STATION, NodeType.SITE],
+            Nodes.capacity: [float("inf"), float("inf"), float("inf")],
+        }
+    )
 
     od_pairs = pd.DataFrame(
         data={

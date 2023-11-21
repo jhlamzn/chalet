@@ -12,6 +12,7 @@ OD_PAIRS = UtilData.od_pairs
 STATION_VARS = UtilData.station_vars
 DEMAND_VARS = UtilData.demand_vars
 CANDIDATES = UtilData.candidates
+STATION_CAPACITIES = UtilData.station_capacities
 
 
 def return_attribute(attrib: str):
@@ -52,7 +53,16 @@ class TestUtil:
         mock_shortest_path.return_value = ([0, 1], 10.0)
         mock_cheapest_path.return_value = ([0, 1], 10.0)
         util.separate_lazy_constraints(
-            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, subgraph_indices, SUB_GRAPHS, bb_info
+            problem,
+            model,
+            OD_PAIRS,
+            NODES,
+            STATION_VARS,
+            CANDIDATES,
+            subgraph_indices,
+            SUB_GRAPHS,
+            bb_info,
+            STATION_CAPACITIES,
         )
 
         mock_shortest_path.assert_called()
@@ -84,7 +94,8 @@ class TestUtil:
             subgraph_indices,
             SUB_GRAPHS,
             bb_info,
-            DEMAND_VARS,
+            STATION_CAPACITIES,
+            demand_vars=DEMAND_VARS,
         )
 
         mock_separation_algo.assert_called()
@@ -113,7 +124,8 @@ class TestUtil:
             subgraph_indices,
             SUB_GRAPHS,
             bb_info,
-            DEMAND_VARS,
+            STATION_CAPACITIES,
+            demand_vars=DEMAND_VARS,
         )
 
         mock_separation_algo.assert_not_called()
@@ -143,7 +155,16 @@ class TestUtil:
         bb_info = util.BranchAndBoundInfo(subgraph_indices)
         bb_info.frac_sep_rounds[1] = 0
         util.separate_lazy_constraints(
-            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, subgraph_indices, SUB_GRAPHS, bb_info
+            problem,
+            model,
+            OD_PAIRS,
+            NODES,
+            STATION_VARS,
+            CANDIDATES,
+            subgraph_indices,
+            SUB_GRAPHS,
+            bb_info,
+            STATION_CAPACITIES,
         )
 
         mock_shortest_path.assert_called()

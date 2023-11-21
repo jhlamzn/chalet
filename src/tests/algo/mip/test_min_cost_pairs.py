@@ -76,15 +76,7 @@ class TestMipMinCostPairs(unittest.TestCase):
     def test_set_model_attributes_and_solve(self, mock_set_controls):
         model = Mock()
         min_cost._set_model_attributes_and_solve(
-            model,
-            STATION_VARS,
-            [0],
-            OD_PAIRS,
-            NODES,
-            SUB_GRAPHS,
-            CANDIDATES,
-            5.0,
-            0.0,
+            model, STATION_VARS, [0], OD_PAIRS, NODES, SUB_GRAPHS, CANDIDATES, 5.0, 0.0, STATION_CAPACITIES
         )
         model.getSolution.assert_called_with(STATION_VARS)
         model.solve.assert_called_once()
@@ -95,7 +87,7 @@ class TestMipMinCostPairs(unittest.TestCase):
         model = Mock()
         problem = Mock()
         check, cutoff = min_cost._pre_check_int_sol(
-            problem, model, STATION_VARS, [0], OD_PAIRS, NODES, SUB_GRAPHS, 10.0
+            problem, model, STATION_VARS, [0], OD_PAIRS, NODES, SUB_GRAPHS, 10.0, STATION_CAPACITIES
         )
         self.assertFalse(check)
         self.assertEqual(cutoff, 10.0)
@@ -106,7 +98,7 @@ class TestMipMinCostPairs(unittest.TestCase):
         model = Mock()
         problem = Mock()
         check, cutoff = min_cost._pre_check_int_sol(
-            problem, model, STATION_VARS, [0], OD_PAIRS, NODES, SUB_GRAPHS, 10.0
+            problem, model, STATION_VARS, [0], OD_PAIRS, NODES, SUB_GRAPHS, 10.0, STATION_CAPACITIES
         )
         self.assertTrue(check)
         self.assertIsNone(cutoff)

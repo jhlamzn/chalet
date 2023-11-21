@@ -52,7 +52,6 @@ def max_demand_pairs(
         model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, cost_budget, station_capacities
     )
 
-    # TODO pass on capacities
     demand_sol, station_sol = _set_model_attributes_and_solve(
         model,
         demand_vars,
@@ -65,6 +64,7 @@ def max_demand_pairs(
         max_run_time,
         tol,
         cost_budget,
+        station_capacities,
     )
     covered_demand += np.sum(od_pairs.loc[subgraph_indices, OdPairs.demand] * np.array(list(demand_sol.values())))
 
@@ -144,6 +144,7 @@ def _set_model_attributes_and_solve(
     max_run_time,
     tol,
     cost_budget,
+    station_capacities: pd.Series,
 ):
     bb_info = util.BranchAndBoundInfo(subgraph_indices)
 
@@ -159,6 +160,7 @@ def _set_model_attributes_and_solve(
                 subgraph_indices,
                 subgraphs,
                 bb_info,
+                station_capacities,
                 demand_vars=demand_vars,
                 cost_budget=cost_budget,
             )
@@ -178,13 +180,24 @@ def _set_model_attributes_and_solve(
                 station_vars,
                 subgraph_indices,
                 subgraphs,
+                station_capacities,
             )
         except Exception:
             logger.error(f"Problem in callback: {traceback.format_exc()}")
 
     def check_int_sol(problem, data):
         try:
-            _check_int_sol(problem, model, demand_vars, od_pairs, nodes, station_vars, subgraph_indices, subgraphs)
+            _check_int_sol(
+                problem,
+                model,
+                demand_vars,
+                od_pairs,
+                nodes,
+                station_vars,
+                subgraph_indices,
+                subgraphs,
+                station_capacities,
+            )
         except Exception:
             logger.error(f"Problem in callback: {traceback.format_exc()}")
 
@@ -222,6 +235,7 @@ def _pre_check_int_sol(
     station_vars,
     subgraph_indices,
     subgraphs,
+    station_capacities: pd.Series,
 ):
     """Check feasibility and improvement of the integer solution.
 
@@ -241,6 +255,7 @@ def _pre_check_int_sol(
 
     infeasible = False
 
+    residual_station_capacities = station_capacities.copy()
     for k in subgraph_indices:
         if x[model.getIndex(demand_vars[k])] < 0.5:
             continue
@@ -248,14 +263,22 @@ def _pre_check_int_sol(
         if obj < best_obj:
             return True, None
 
-        path = util.get_feasible_path(subgraphs[k], k, od_pairs, sol_filter)
         demand = od_pairs.at[k, OdPairs.demand]
+
+        def filter_func(u):
+            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities[u] >= demand)
+
+        path = util.get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
 
         if not path:
             infeasible = True
             x[model.getIndex(demand_vars[k])] = 0
             obj -= demand
             continue
+
+        for u in path:
+            if util.is_station(u, nodes):  # adjust remaining capacity of used stations
+                residual_station_capacities[u] -= demand
 
     if infeasible:
         problem.loadmipsol(x)  # outside of optnode callback need to use this method instead of addmipsol
@@ -264,7 +287,17 @@ def _pre_check_int_sol(
     return False, cutoff
 
 
-def _check_int_sol(problem, model, demand_vars, od_pairs, nodes, station_vars, subgraph_indices, subgraphs):
+def _check_int_sol(
+    problem,
+    model,
+    demand_vars,
+    od_pairs,
+    nodes,
+    station_vars,
+    subgraph_indices,
+    subgraphs,
+    station_capacities: pd.Series,
+):
     """Check maximality of the demand variables in the integer solution (after acceptance).
 
     If the demand variables are not maximal, then the improved solution is added to the solver.
@@ -277,14 +310,24 @@ def _check_int_sol(problem, model, demand_vars, od_pairs, nodes, station_vars, s
 
     sub_optimal = False
 
+    residual_station_capacities = station_capacities.copy()
     for k in subgraph_indices:
         if x[model.getIndex(demand_vars[k])] > 0.5:
             continue
 
-        path = util.get_feasible_path(subgraphs[k], k, od_pairs, is_active)
+        demand = od_pairs.at[k, OdPairs.demand]
+
+        def filter_func(u):
+            return is_active(u) and (not util.is_station(u, nodes) or residual_station_capacities[u] >= demand)
+
+        path = util.get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
 
         if not path:
             continue
+
+        for u in path:
+            if util.is_station(u, nodes):  # adjust remaining capacity of used stations
+                residual_station_capacities[u] -= demand
 
         sub_optimal = True
         x[model.getIndex(demand_vars[k])] = 1

@@ -42,7 +42,6 @@ def min_cost_pairs(nodes, subgraphs, od_pairs, tol, max_run_time, log_dir):
         model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, station_vars, station_capacities
     )
 
-    # TODO pass on capacities
     station_sol = _set_model_attributes_and_solve(
         model,
         station_vars,
@@ -53,6 +52,7 @@ def min_cost_pairs(nodes, subgraphs, od_pairs, tol, max_run_time, log_dir):
         candidates,
         max_run_time,
         tol,
+        station_capacities,
     )
 
     covered_demand += od_pairs.loc[subgraph_indices, OdPairs.demand].sum()
@@ -108,22 +108,29 @@ def _construct_initial_solution(
     model.addmipsol(init_sol_vec)
 
 
-def _pre_check_int_sol(problem, model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, cutoff):
+def _pre_check_int_sol(
+    problem, model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, cutoff, station_capacities: pd.Series
+):
     x: List = []
     problem.getlpsol(x, None, None, None)
 
     def sol_filter(u):
         return not helper.is_candidate(u, nodes) or x[model.getIndex(station_vars[u])] > 0.5
 
+    residual_station_capacities = station_capacities.copy()
     for k in subgraph_indices:
         orig, dest = od_pairs.at[k, OdPairs.origin_id], od_pairs.at[k, OdPairs.destination_id]
         max_time, max_road_time = (
             od_pairs.at[k, OdPairs.max_time],
             od_pairs.at[k, OdPairs.max_road_time],
         )
+        demand = od_pairs.at[k, OdPairs.demand]
+
+        def filter_func(u):
+            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities[u] >= demand)
 
         path = csp.time_feasible_path(
-            nx.subgraph_view(subgraphs[k], filter_node=sol_filter),
+            nx.subgraph_view(subgraphs[k], filter_node=filter_func),
             orig,
             dest,
             max_road_time,
@@ -133,18 +140,31 @@ def _pre_check_int_sol(problem, model, station_vars, subgraph_indices, od_pairs,
         if not path:
             return True, None
 
+        for u in path:
+            if util.is_station(u, nodes):  # adjust remaining capacity of used stations
+                residual_station_capacities[u] -= demand
+
     return False, cutoff
 
 
 def _set_model_attributes_and_solve(
-    model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, candidates, max_run_time, tol
+    model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, candidates, max_run_time, tol, station_capacities
 ):
     bb_info = util.BranchAndBoundInfo(subgraph_indices)
 
     def separate_lazy_constraints(problem, data):
         try:
             return util.separate_lazy_constraints(
-                problem, model, od_pairs, nodes, station_vars, candidates, subgraph_indices, subgraphs, bb_info
+                problem,
+                model,
+                od_pairs,
+                nodes,
+                station_vars,
+                candidates,
+                subgraph_indices,
+                subgraphs,
+                bb_info,
+                station_capacities,
             )
         except Exception:
             logger.error(f"Problem in callback: {traceback.format_exc()}")
@@ -154,7 +174,7 @@ def _set_model_attributes_and_solve(
             if soltype == 0:  # if solution is found as optimal node relaxation, do not reject
                 return False, cutoff
             return _pre_check_int_sol(
-                problem, model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, cutoff
+                problem, model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, cutoff, station_capacities
             )
         except Exception:
             logger.error(f"Problem in callback: {traceback.format_exc()}")
