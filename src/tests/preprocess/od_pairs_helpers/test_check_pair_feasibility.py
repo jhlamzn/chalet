@@ -8,7 +8,7 @@ from pandas.testing import assert_frame_equal
 from chalet.model.processed_arcs import Arcs
 from chalet.model.processed_od_pairs import OdPairs
 from chalet.preprocess.od_pairs_helpers import check_pair_feasibility
-from tests.preprocess.stub_data import get_stub_processed_od_pairs
+from tests.preprocess.stub_data import get_stub_nodes, get_stub_processed_od_pairs
 
 
 def test_check_pair_feasibility():
@@ -26,7 +26,8 @@ def test_check_pair_feasibility():
     subgraphs = [graph1, graph2, graph3]
     expected = actual.copy()
     expected[OdPairs.feasible] = pd.Series([True, False, False])
+    nodes = get_stub_nodes()
 
-    check_pair_feasibility(subgraphs, actual)
+    check_pair_feasibility(subgraphs, actual, nodes)
 
     assert_frame_equal(actual, expected)

@@ -88,6 +88,7 @@ def get_stub_data() -> Dict:
             Nodes.longitude: [0.0, 0.0, 10.0, 10.0],
             Nodes.name: ["node" + str(i) for i in range(1, 5)],
             Nodes.real: 4 * [True],
+            Nodes.capacity: 4 * [float("inf")],
         },
         index=node_ids,
     )
@@ -139,6 +140,7 @@ def get_stub_nodes() -> pd.DataFrame:
             Nodes.longitude: [0.0, 0.0, 10.0, 10.0],
             Nodes.name: ["node" + str(i) for i in range(1, 5)],
             Nodes.real: 4 * [True],
+            Nodes.capacity: 4 * [float("inf")],
         },
         index=node_ids,
     )

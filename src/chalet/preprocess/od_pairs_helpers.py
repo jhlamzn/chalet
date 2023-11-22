@@ -11,9 +11,11 @@ import pandas as pd
 
 from chalet.algo.csp import time_feasible_path
 from chalet.algo.graph import create_subgraphs
+from chalet.algo.util import is_station
 from chalet.common.constants import ROUND_OFF_FACTOR, UNKNOWN_SITES
 from chalet.model.hash_map import Hashmap
 from chalet.model.input.node import Node
+from chalet.model.input.node_type import NodeType
 from chalet.model.input.od_pair import OdPair
 from chalet.model.parameters import Parameters
 from chalet.model.processed_od_pairs import OdPairs
@@ -70,7 +72,7 @@ def add_direct_transit_time_od_pairs(
     od_pairs.loc[:, OdPairs.max_road_time] = buffered_direct_times
 
 
-def check_pair_feasibility(subgraphs: list, od_pairs: pd.DataFrame):
+def check_pair_feasibility(subgraphs: list, od_pairs: pd.DataFrame, nodes: pd.DataFrame):
     """Check for each OD pair if the subgraph contains a time-feasible route.
 
     Add feasibility flag to OD pairs and returns sum of infeasible demands.
@@ -82,6 +84,7 @@ def check_pair_feasibility(subgraphs: list, od_pairs: pd.DataFrame):
         raise ValueError("Number of sub-graphs and OD pairs mismatch")
     od_pairs[OdPairs.feasible] = False
 
+    residual_station_capacities = nodes.loc[nodes[Node.type] == NodeType.STATION, Node.capacity].copy()
     for k in range(len(od_pairs)):
         orig, dest = (
             od_pairs.at[k, OdPair.origin_id],
@@ -91,11 +94,22 @@ def check_pair_feasibility(subgraphs: list, od_pairs: pd.DataFrame):
             od_pairs.at[k, OdPairs.max_time],
             od_pairs.at[k, OdPairs.max_road_time],
         )
+        demand = od_pairs.at[k, OdPairs.demand]
 
-        path = time_feasible_path(subgraphs[k], orig, dest, max_road_time, max_time)
+        def filter_func(u):
+            return not is_station(u, nodes) or residual_station_capacities.at[u] >= demand
 
-        if path:
-            od_pairs.at[k, OdPairs.feasible] = True
+        subgraph = nx.subgraph_view(subgraphs[k], filter_node=filter_func)
+
+        path = time_feasible_path(subgraph, orig, dest, max_road_time, max_time)
+
+        if not path:
+            continue
+
+        od_pairs.at[k, OdPairs.feasible] = True
+        for u in path:
+            if is_station(u, nodes):
+                residual_station_capacities.at[u] -= demand
 
     end_time = time.perf_counter()
     logger.info(f"Finished in {round(end_time - start_time, ROUND_OFF_FACTOR)} secs.")
@@ -119,7 +133,7 @@ def generate_subgraphs_for_od_pairs(
         fuel_time_bound,
         num_proc_sub,
     )
-    check_pair_feasibility(subgraphs, od_pairs)
+    check_pair_feasibility(subgraphs, od_pairs, nodes)
     pairs_feasible = od_pairs[OdPairs.feasible].sum()
     logger.info(
         f"Feasible OD pairs: {pairs_feasible} ({round(100 * pairs_feasible / len(od_pairs), ROUND_OFF_FACTOR)} %)"
