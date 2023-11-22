@@ -120,7 +120,7 @@ def _construct_initial_solution(
             continue
         for u in path:
             if util.is_station(u, nodes):  # adjust remaining capacity of used stations
-                residual_station_capacities[u] -= demand
+                residual_station_capacities.at[u] -= demand
             if helper.is_candidate(u, nodes) and not station_dict[u]:  # save new nodes to solution
                 station_dict[u] = 1
                 sol.append(u)
@@ -266,7 +266,7 @@ def _pre_check_int_sol(
         demand = od_pairs.at[k, OdPairs.demand]
 
         def filter_func(u):
-            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities[u] >= demand)
+            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities.at[u] >= demand)
 
         path = util.get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
 
@@ -278,7 +278,7 @@ def _pre_check_int_sol(
 
         for u in path:
             if util.is_station(u, nodes):  # adjust remaining capacity of used stations
-                residual_station_capacities[u] -= demand
+                residual_station_capacities.at[u] -= demand
 
     if infeasible:
         problem.loadmipsol(x)  # outside of optnode callback need to use this method instead of addmipsol
@@ -318,7 +318,7 @@ def _check_int_sol(
         demand = od_pairs.at[k, OdPairs.demand]
 
         def filter_func(u):
-            return is_active(u) and (not util.is_station(u, nodes) or residual_station_capacities[u] >= demand)
+            return is_active(u) and (not util.is_station(u, nodes) or residual_station_capacities.at[u] >= demand)
 
         path = util.get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
 
@@ -327,7 +327,7 @@ def _check_int_sol(
 
         for u in path:
             if util.is_station(u, nodes):  # adjust remaining capacity of used stations
-                residual_station_capacities[u] -= demand
+                residual_station_capacities.at[u] -= demand
 
         sub_optimal = True
         x[model.getIndex(demand_vars[k])] = 1

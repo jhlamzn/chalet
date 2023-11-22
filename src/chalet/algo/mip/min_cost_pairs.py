@@ -93,7 +93,7 @@ def _construct_initial_solution(
         path, path_cost = helper.get_cheapest_path(od_pairs, k, subgraphs, nodes, sol_set, excluded_nodes)
         for u in path:
             if util.is_station(u, nodes):  # adjust remaining capacity of used stations
-                residual_station_capacities[u] -= demand
+                residual_station_capacities.at[u] -= demand
             if helper.is_candidate(u, nodes):  # save new nodes to solution
                 sol_set.add(u)
 
@@ -127,7 +127,7 @@ def _pre_check_int_sol(
         demand = od_pairs.at[k, OdPairs.demand]
 
         def filter_func(u):
-            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities[u] >= demand)
+            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities.at[u] >= demand)
 
         path = csp.time_feasible_path(
             nx.subgraph_view(subgraphs[k], filter_node=filter_func),
@@ -142,7 +142,7 @@ def _pre_check_int_sol(
 
         for u in path:
             if util.is_station(u, nodes):  # adjust remaining capacity of used stations
-                residual_station_capacities[u] -= demand
+                residual_station_capacities.at[u] -= demand
 
     return False, cutoff
 

@@ -143,14 +143,14 @@ def check_pair_coverage(nodes, subgraphs, od_pairs) -> pd.Series:
         demand = od_pairs.at[k, OdPairs.demand]
 
         def filter_func(u):
-            return is_active(u) and (not is_station(u, nodes) or station_capacity_series[u] >= demand)
+            return is_active(u) and (not is_station(u, nodes) or station_capacity_series.at[u] >= demand)
 
         path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
         for u in path:
             if is_station(u, nodes):
-                station_capacity_series[u] -= demand
+                station_capacity_series.at[u] -= demand
 
         od_pairs.at[k, OdPairs.covered] = True
 
@@ -353,7 +353,7 @@ def _primal_heuristic(
         demand = od_pairs.at[k, OdPairs.demand]
 
         def filter_func(u):
-            return not is_station(u, nodes) or residual_station_capacities[u] >= demand
+            return not is_station(u, nodes) or residual_station_capacities.at[u] >= demand
 
         sub_graph = nx.subgraph_view(sub_graph, filter_node=filter_func)  # filter out exhausted stations
 
@@ -374,7 +374,7 @@ def _primal_heuristic(
         new_stations = []
         for u in path:
             if is_station(u, nodes):
-                residual_station_capacities[u] -= demand  # update station capacity
+                residual_station_capacities.at[u] -= demand  # update station capacity
             if is_candidate(u, nodes) and not station_sol_dict[u]:
                 station_sol_dict[u] = 1
                 path_cost += nodes.at[u, Nodes.cost]
@@ -802,7 +802,7 @@ def calc_station_stats(
         demand = od_pairs.at[k, OdPairs.demand]
 
         def filter_func(u):
-            return is_active(u) and (not is_station(u, nodes) or station_capacity_series[u] >= demand)
+            return is_active(u) and (not is_station(u, nodes) or station_capacity_series.at[u] >= demand)
 
         path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
@@ -824,7 +824,7 @@ def calc_station_stats(
 
             # OD pair data
             nodes.at[node, Nodes.demand] += demand
-            station_capacity_series[node] -= demand
+            station_capacity_series.at[node] -= demand
 
             if path[n + 1] < 0:  # if station has a dummy node
                 out_node, next_node = path[n + 1], path[n + 2]
