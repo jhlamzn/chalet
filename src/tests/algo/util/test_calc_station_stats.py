@@ -81,4 +81,4 @@ def test_calc_station_stats(patch_object):
 
     assert_frame_equal(actual_nodes, expected_nodes)
     assert_frame_equal(actual_od_pairs, expected_od_pairs)
-    patch_object.assert_has_calls([call(subgraphs[i], i, actual_od_pairs, ANY) for i in range(3)])
+    patch_object.assert_has_calls([call(ANY, i, actual_od_pairs) for i in range(3)])

@@ -18,7 +18,7 @@ class MipData:
     station_sol = {0: 0}
 
     demand_vars = xp.vars([0], name="demand", vartype=xp.binary)
-    station_vars = xp.vars([0, 1], name="station", vartype=xp.binary)
+    station_vars = xp.vars([0, 1, 2], name="station", vartype=xp.binary)
 
     station_capacities = pd.Series(data=[1.0, 1.0, 1.0], index=[0, 1, 2])
 

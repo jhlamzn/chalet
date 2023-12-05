@@ -96,10 +96,9 @@ def check_pair_feasibility(subgraphs: list, od_pairs: pd.DataFrame, nodes: pd.Da
         )
         demand = od_pairs.at[k, OdPairs.demand]
 
-        def filter_func(u):
-            return not is_station(u, nodes) or residual_station_capacities.at[u] >= demand
-
-        subgraph = nx.subgraph_view(subgraphs[k], filter_node=filter_func)
+        excluded_nodes = list(residual_station_capacities.loc[residual_station_capacities < demand].index)
+        subgraph = subgraphs[k].copy()
+        subgraph.remove_nodes_from(excluded_nodes)
 
         path = time_feasible_path(subgraph, orig, dest, max_road_time, max_time)
 

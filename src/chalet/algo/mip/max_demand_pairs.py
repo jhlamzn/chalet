@@ -250,8 +250,8 @@ def _pre_check_int_sol(
     obj = np.sum([x[model.getIndex(demand_vars[k])] * od_pairs.at[k, OdPairs.demand] for k in subgraph_indices])
     best_obj = max(problem.getAttrib(MIP_OBJ_VAL), problem.getAttrib(MIP_BEST_OBJ_VAL)) + EPS
 
-    def sol_filter(node):
-        return not helper.is_candidate(node, nodes) or x[model.getIndex(station_vars[node])] > 0.5
+    candidates = list(nodes.loc[nodes[Nodes.cost] > EPS].index)
+    inactive_candidates = [node for node in candidates if x[model.getIndex(station_vars[node])] < 0.5]
 
     infeasible = False
 
@@ -265,10 +265,13 @@ def _pre_check_int_sol(
 
         demand = od_pairs.at[k, OdPairs.demand]
 
-        def filter_func(u):
-            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities.at[u] >= demand)
+        excluded_nodes = inactive_candidates + list(
+            residual_station_capacities.loc[residual_station_capacities < demand].index
+        )
+        subgraph = subgraphs[k].copy()
+        subgraph.remove_nodes_from(excluded_nodes)
 
-        path = util.get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
+        path = util.get_feasible_path(subgraph, k, od_pairs)
 
         if not path:
             infeasible = True
@@ -305,8 +308,8 @@ def _check_int_sol(
     x: List = []
     problem.getlpsol(x, None, None, None)
 
-    def is_active(node):
-        return not helper.is_candidate(node, nodes) or x[model.getIndex(station_vars[node])] > 0.5
+    candidates = list(nodes.loc[nodes[Nodes.cost] > EPS].index)
+    inactive_candidates = [node for node in candidates if x[model.getIndex(station_vars[node])] < 0.5]
 
     sub_optimal = False
 
@@ -317,10 +320,13 @@ def _check_int_sol(
 
         demand = od_pairs.at[k, OdPairs.demand]
 
-        def filter_func(u):
-            return is_active(u) and (not util.is_station(u, nodes) or residual_station_capacities.at[u] >= demand)
+        excluded_nodes = inactive_candidates + list(
+            residual_station_capacities.loc[residual_station_capacities < demand].index
+        )
+        subgraph = subgraphs[k].copy()
+        subgraph.remove_nodes_from(excluded_nodes)
 
-        path = util.get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
+        path = util.get_feasible_path(subgraph, k, od_pairs)
 
         if not path:
             continue

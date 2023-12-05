@@ -29,7 +29,7 @@ class UtilData:
     nodes = pd.DataFrame(
         data={
             Nodes.id: [0, 1, 2],
-            Nodes.cost: [1, 2, 3],
+            Nodes.cost: [1, 2, 0],
             Nodes.real: [True, True, False],
             Nodes.type: [NodeType.STATION, NodeType.STATION, NodeType.SITE],
             Nodes.capacity: [float("inf"), float("inf"), float("inf")],

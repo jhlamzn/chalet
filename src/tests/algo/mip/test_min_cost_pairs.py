@@ -85,7 +85,13 @@ class TestMipMinCostPairs(unittest.TestCase):
     @patch(get_path_module(time_feasible_path), return_value=[0, 1])
     def test_pre_check_int_sol(self, mock_time_feasible_path):
         model = Mock()
+        model.getIndex.return_value = 0
         problem = Mock()
+
+        def mock_lpsol(a, b, c, d):
+            a.append(0)
+
+        problem.getlpsol.side_effect = mock_lpsol
         check, cutoff = min_cost._pre_check_int_sol(
             problem, model, STATION_VARS, [0], OD_PAIRS, NODES, SUB_GRAPHS, 10.0, STATION_CAPACITIES
         )
@@ -96,7 +102,13 @@ class TestMipMinCostPairs(unittest.TestCase):
     @patch(get_path_module(time_feasible_path), return_value=None)
     def test_pre_check_int_sol_without_feasible_path(self, mock_time_feasible_path):
         model = Mock()
+        model.getIndex.return_value = 0
         problem = Mock()
+
+        def mock_lpsol(a, b, c, d):
+            a.append(0)
+
+        problem.getlpsol.side_effect = mock_lpsol
         check, cutoff = min_cost._pre_check_int_sol(
             problem, model, STATION_VARS, [0], OD_PAIRS, NODES, SUB_GRAPHS, 10.0, STATION_CAPACITIES
         )

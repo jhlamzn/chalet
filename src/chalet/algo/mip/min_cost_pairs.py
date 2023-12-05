@@ -3,10 +3,10 @@
 
 """Mixed Integer Programming (MIP) model/algorithm to minimize cost."""
 import logging
+import time
 import traceback
 from typing import List, Set
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 import xpress as xp
@@ -14,7 +14,7 @@ import xpress as xp
 import chalet.algo.csp as csp
 import chalet.algo.mip.helper as helper
 import chalet.algo.util as util
-from chalet.common.constants import ROUND_OFF_FACTOR
+from chalet.common.constants import EPS, ROUND_OFF_FACTOR
 from chalet.log_config.config import set_mip_log_file
 from chalet.model.processed_nodes import Nodes
 from chalet.model.processed_od_pairs import OdPairs
@@ -85,6 +85,7 @@ def _construct_initial_solution(
     model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, station_vars, station_capacities: pd.Series
 ):
     logger.info("Running heuristic for initial solution.")
+    start_time = time.perf_counter()
     sol_set: Set = set()
     residual_station_capacities = station_capacities.copy()
     for k in subgraph_indices:
@@ -104,7 +105,10 @@ def _construct_initial_solution(
     init_cost = np.sum(
         [init_sol_vec[model.getIndex(station_vars[i])] * nodes.at[i, Nodes.cost] for i in candidates.index]
     )
-    logger.info(f"Constructed initial solution. Cost = {init_cost}")
+    end_time = time.perf_counter()
+    logger.info(
+        f"Constructed initial solution in {round(end_time - start_time, ROUND_OFF_FACTOR)} secs. Cost = {init_cost}"
+    )
     model.addmipsol(init_sol_vec)
 
 
@@ -114,8 +118,8 @@ def _pre_check_int_sol(
     x: List = []
     problem.getlpsol(x, None, None, None)
 
-    def sol_filter(u):
-        return not helper.is_candidate(u, nodes) or x[model.getIndex(station_vars[u])] > 0.5
+    candidates = list(nodes.loc[nodes[Nodes.cost] > EPS].index)
+    inactive_candidates = [node for node in candidates if x[model.getIndex(station_vars[node])] < 0.5]
 
     residual_station_capacities = station_capacities.copy()
     for k in subgraph_indices:
@@ -126,11 +130,14 @@ def _pre_check_int_sol(
         )
         demand = od_pairs.at[k, OdPairs.demand]
 
-        def filter_func(u):
-            return sol_filter(u) and (not util.is_station(u, nodes) or residual_station_capacities.at[u] >= demand)
+        excluded_nodes = inactive_candidates + list(
+            residual_station_capacities.loc[residual_station_capacities < demand].index
+        )
+        subgraph = subgraphs[k].copy()
+        subgraph.remove_nodes_from(excluded_nodes)
 
         path = csp.time_feasible_path(
-            nx.subgraph_view(subgraphs[k], filter_node=filter_func),
+            subgraph,
             orig,
             dest,
             max_road_time,

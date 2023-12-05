@@ -15,7 +15,7 @@ from networkx.algorithms.flow import shortest_augmenting_path
 import chalet.algo.csp as csp
 from chalet.algo.csp import arc_road_time as road_time_func
 from chalet.algo.csp import arc_time as time_func
-from chalet.common.constants import CAPACITY, EPS, EPS_INT, MIP_BEST_OBJ_VAL, MIP_OBJ_VAL
+from chalet.common.constants import CAPACITY, EPS, EPS_INT, MIP_BEST_OBJ_VAL, MIP_OBJ_VAL, ROUND_OFF_FACTOR
 from chalet.model.input.node_type import NodeType
 from chalet.model.processed_arcs import Arcs
 from chalet.model.processed_nodes import Nodes
@@ -129,32 +129,38 @@ def check_pair_coverage(nodes, subgraphs, od_pairs) -> pd.Series:
 
     Add coverage flags in column "COVERED" of od_pairs. Returns series of residual station capacities.
     """
+    logger.info("Checking OD pair coverage..")
+    start_time = time.perf_counter()
     num_pairs = len(od_pairs)
     od_pairs[OdPairs.covered] = False
 
-    def is_candidate(n):
-        return nodes.at[n, Nodes.cost] > EPS
+    inactive_candidates = list(
+        nodes.loc[~nodes[Nodes.real] & (nodes[Nodes.cost] > EPS)].index  # all candidate nodes that are not selected
+    )
 
-    def is_active(u):
-        return is_dummy(u) or nodes.at[u, Nodes.real] or not is_candidate(u)
-
-    station_capacity_series = nodes.loc[nodes[Nodes.type] == NodeType.STATION, Nodes.capacity].copy()
+    residual_station_capacity = nodes.loc[nodes[Nodes.type] == NodeType.STATION, Nodes.capacity].copy()
     for k in range(num_pairs):
         demand = od_pairs.at[k, OdPairs.demand]
 
-        def filter_func(u):
-            return is_active(u) and (not is_station(u, nodes) or station_capacity_series.at[u] >= demand)
+        excluded_nodes = inactive_candidates + list(
+            residual_station_capacity.loc[residual_station_capacity < demand].index
+        )
+        subgraph = subgraphs[k].copy()
+        subgraph.remove_nodes_from(excluded_nodes)
 
-        path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
+        path = get_feasible_path(subgraph, k, od_pairs)
         if not path:
             continue
         for u in path:
             if is_station(u, nodes):
-                station_capacity_series.at[u] -= demand
+                residual_station_capacity.at[u] -= demand
 
         od_pairs.at[k, OdPairs.covered] = True
 
-    return station_capacity_series
+    end_time = time.perf_counter()
+    logger.info(f"Finished in {round(end_time - start_time, ROUND_OFF_FACTOR)} secs.")
+
+    return residual_station_capacity
 
 
 def remove_redundant_stations(nodes, subgraphs, od_pairs):
@@ -352,10 +358,10 @@ def _primal_heuristic(
         )
         demand = od_pairs.at[k, OdPairs.demand]
 
-        def filter_func(u):
-            return not is_station(u, nodes) or residual_station_capacities.at[u] >= demand
-
-        sub_graph = nx.subgraph_view(sub_graph, filter_node=filter_func)  # filter out exhausted stations
+        excluded_nodes = list(residual_station_capacities.loc[residual_station_capacities < demand].index)
+        if excluded_nodes is not None:
+            sub_graph = sub_graph.copy()
+            sub_graph.remove_nodes_from(excluded_nodes)
 
         candidate_nodes = [u for u in sub_graph if is_candidate(u, nodes)]
         reduced_costs = [
@@ -709,16 +715,18 @@ def _set_integer_solution(
             problem.addmipsol(y)
 
 
-def get_feasible_path(sub_graph, index, od_pairs, filter_func):
+def get_feasible_path(sub_graph, index, od_pairs, filter_func=None):
     """Get a time feasible path based on road time and max road time bounds."""
     orig, dest = od_pairs.at[index, OdPairs.origin_id], od_pairs.at[index, OdPairs.destination_id]
     max_time, max_road_time = (
         od_pairs.at[index, OdPairs.max_time],
         od_pairs.at[index, OdPairs.max_road_time],
     )
-    path = csp.time_feasible_path(
-        nx.subgraph_view(sub_graph, filter_node=filter_func), orig, dest, max_road_time, max_time
-    )
+    if filter_func is not None:
+        graph = nx.subgraph_view(sub_graph, filter_node=filter_func)
+    else:
+        graph = sub_graph
+    path = csp.time_feasible_path(graph, orig, dest, max_road_time, max_time)
     return path
 
 
@@ -784,14 +792,9 @@ def calc_station_stats(
     nodes[Nodes.demand] = 0.0
     num_pairs = len(od_pairs)
 
-    def is_candidate(u):
-        return nodes.at[u, Nodes.cost] > EPS
-
-    def is_real_node(u):
-        return (u < 0) or nodes.at[u, Nodes.real]  # negation is remaining candidate (not dummy and not real)
-
-    def is_active(u):
-        return is_real_node(u) or not is_candidate(u)
+    inactive_candidates = list(
+        nodes.loc[~nodes[Nodes.real] & (nodes[Nodes.cost] > EPS)].index  # all candidate nodes that are not selected
+    )
 
     od_pairs[OdPairs.stations] = ""
     od_pairs[OdPairs.fuel_stops] = 0
@@ -801,10 +804,11 @@ def calc_station_stats(
     for k in range(num_pairs):
         demand = od_pairs.at[k, OdPairs.demand]
 
-        def filter_func(u):
-            return is_active(u) and (not is_station(u, nodes) or station_capacity_series.at[u] >= demand)
+        excluded_nodes = inactive_candidates + list(station_capacity_series.loc[station_capacity_series < demand].index)
+        subgraph = subgraphs[k].copy()
+        subgraph.remove_nodes_from(excluded_nodes)
 
-        path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
+        path = get_feasible_path(subgraph, k, od_pairs)
         if not path:
             continue
 
