@@ -35,6 +35,9 @@ class InputParameters(BaseJsonFile):
     # Maximum charging break for each individual recharging stop (in minutes).
     max_fuel_time: float = 45
 
+    # Default station capacity (maximum assigned demand per station)
+    station_capacity: float = float("inf")
+
     # Optimality tolerance for MIP algorithm.
     tolerance: float = 0.0
 

@@ -9,6 +9,7 @@ import pandas as pd
 from chalet.common.constants import EPS
 from chalet.model.input.node import Node
 from chalet.model.input.node_type import NodeType
+from chalet.model.parameters import Parameters
 from chalet.model.processed_nodes import Nodes
 from chalet.preprocess.preprocess import PreprocessData
 
@@ -32,8 +33,9 @@ class PreprocessNodes(PreprocessData):
 
         nodes[Nodes.real] = False  # marks the active stations -> output
         nodes.loc[~is_candidate, Nodes.real] = True  # non-candidate stations are active
-        # set infinity as default station capacity
+        # set default station capacity
+        default_capacity = data[Parameters.get_file_name()].station_capacity
         if Node.capacity in nodes.columns:
-            nodes[Nodes.capacity] = nodes[Node.capacity].fillna(value=float("inf"))
+            nodes[Nodes.capacity] = nodes[Node.capacity].fillna(value=default_capacity)
         else:
-            nodes[Nodes.capacity] = float("inf")
+            nodes[Nodes.capacity] = default_capacity

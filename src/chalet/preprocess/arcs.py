@@ -86,10 +86,11 @@ class PreprocessArcs(PreprocessData):
         nodes: pd.DataFrame,
     ):
         """Removes all arcs whose endpoints are not contained in the provided nodes."""
+        logger.info("Filtering arcs globally based on input nodes..")
         tail_exists = arcs[Arc.tail_id].isin(nodes[Node.id])
         head_exists = arcs[Arc.head_id].isin(nodes[Node.id])
         arcs = arcs.loc[tail_exists & head_exists].copy()
-
+        logger.info(f"Arcs remaining: {len(arcs)}")
         return arcs
 
     @staticmethod
