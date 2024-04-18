@@ -143,8 +143,9 @@ class TestMipMaxDemandPairs(unittest.TestCase):
     def test_pre_check_int_sol_without_soltype(self):
         model = Mock()
         problem = Mock()
+        station_capacities = pd.Series([float("inf")] * len(STATION_CAPACITIES))
         check, cutoff = max_demand._pre_check_int_sol(
-            problem, 0, 0, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS, STATION_CAPACITIES
+            problem, 0, 0, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS, station_capacities
         )
         self.assertFalse(check)
         self.assertEqual(cutoff, 0)

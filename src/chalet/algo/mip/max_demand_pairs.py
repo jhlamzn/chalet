@@ -242,7 +242,8 @@ def _pre_check_int_sol(
     Additionally, if the projection onto the feasible set is improving, it is added to the solver.
     """
     if soltype == 0:  # Optimal node solutions are handled by OPTNODE callback
-        return False, cutoff
+        if station_capacities.min() == float("inf"):  # if capacity constraint is active, we need to check feasibility
+            return False, cutoff
 
     x: List = []
     problem.getlpsol(x, None, None, None)
