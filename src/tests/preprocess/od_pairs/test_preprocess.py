@@ -55,30 +55,30 @@ class TestPreprocessOdPairs:
         expected_changed_data = {
             OdPair.get_file_name(): pd.DataFrame(
                 {
-                    OdPairs.origin_id: [1, 2, 3, 3],
-                    OdPairs.destination_id: [2, 3, 4, 4],
-                    OdPairs.demand: [10.0, 20.0, 30.0, 40.0],
+                    OdPairs.origin_id: [3, 3, 2, 1],
+                    OdPairs.destination_id: [4, 4, 3, 2],
+                    OdPairs.demand: [40.0, 30.0, 20.0, 10.0],
                     OdPairs.distance: 4 * [10.0],
                     OdPairs.direct_time: 4 * [10.0],
                     OdPairs.max_time: 4 * [40.0],
                     OdPairs.max_road_time: 4 * [40.0],
-                    OdPairs.feasible: [True, False, False, False],
+                    OdPairs.feasible: [False, False, False, True],
                 }
             ),
             UNKNOWN_SITES: pd.Series([5]),
             OD_COVERAGE: pd.DataFrame(
                 {
-                    OdPairs.origin_id: [1, 2, 3, 3],
-                    OdPairs.destination_id: [2, 3, 4, 4],
-                    OdPairs.demand: [10.0, 20.0, 30.0, 40.0],
+                    OdPairs.origin_id: [3, 3, 2, 1],
+                    OdPairs.destination_id: [4, 4, 3, 2],
+                    OdPairs.demand: [40.0, 30.0, 20.0, 10.0],
                     OdPairs.distance: 4 * [10.0],
                     OdPairs.direct_time: 4 * [10.0],
                     OdPairs.max_time: 4 * [40.0],
                     OdPairs.max_road_time: 4 * [40.0],
-                    OdPairs.feasible: [True, False, False, False],
+                    OdPairs.feasible: [False, False, False, True],
                 }
             ),
-            SUB_GRAPHS: [graph1, nx.DiGraph(), nx.DiGraph(), nx.DiGraph()],
+            SUB_GRAPHS: [nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), graph1],
         }
 
         pop.preprocess(data)

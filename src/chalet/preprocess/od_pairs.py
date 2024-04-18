@@ -77,6 +77,8 @@ class PreprocessOdPairs(PreprocessData):
 
         add_direct_transit_time_od_pairs(od_coverage, time_dist_map, params, transit_time_provider)
 
+        od_coverage.sort_values(OdPair.demand, inplace=True, ascending=False, ignore_index=True)
+
         return od_coverage
 
     def _create_od_pair_graphs(
