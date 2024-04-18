@@ -365,7 +365,7 @@ def _primal_heuristic(
 
         candidate_nodes = [u for u in sub_graph if is_candidate(u, nodes)]
         reduced_costs = [
-            nodes.at[u, Nodes.cost] * max(0.0, 1.0 - y[model.getIndex(station_vars[u])]) for u in candidate_nodes
+            nodes.at[u, Nodes.cost] * max(0.0, 0.01 + 1.0 - y[model.getIndex(station_vars[u])]) for u in candidate_nodes
         ]
         nx.set_node_attributes(sub_graph, dict(zip(candidate_nodes, reduced_costs)), Nodes.cost)
         path, _ = csp.time_feasible_cheapest_path(sub_graph, orig, dest, max_road_time, max_time)
@@ -726,7 +726,7 @@ def get_feasible_path(sub_graph, index, od_pairs, filter_func=None):
         graph = nx.subgraph_view(sub_graph, filter_node=filter_func)
     else:
         graph = sub_graph
-    path = csp.time_feasible_path(graph, orig, dest, max_road_time, max_time)
+    path, _ = csp.time_feasible_cheapest_path(graph, orig, dest, max_road_time, max_time)
     return path
 
 

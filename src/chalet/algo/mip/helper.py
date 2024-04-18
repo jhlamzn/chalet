@@ -122,9 +122,10 @@ def get_cheapest_path(od_pairs, index, subgraphs, nodes, sol_set, excluded_nodes
         sub_graph = sub_graph.copy()
         sub_graph.remove_nodes_from(excluded_nodes)
 
-    nx.set_node_attributes(sub_graph, dict(zip(sol_set, [0] * len(sol_set))), Nodes.cost)
+    nx.set_node_attributes(sub_graph, dict(zip(sol_set, [0.01] * len(sol_set))), Nodes.cost)
     path, path_cost = csp.time_feasible_cheapest_path(sub_graph, orig, dest, max_road_time, max_time)
     nx.set_node_attributes(sub_graph, dict(zip(sol_set, nodes.loc[list(sol_set), Nodes.cost])), Nodes.cost)
+    path_cost = sum([nodes.at[n, Nodes.cost] for n in path if util.is_candidate(n, nodes) and n not in sol_set])
     return path, path_cost
 
 

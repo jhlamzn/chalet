@@ -13,10 +13,10 @@ from chalet.model.processed_od_pairs import OdPairs
 
 
 def time_feasible_path_mock(subgraph, orig, dest, max_road_time, max_time):
-    return 10
+    return 10, 10
 
 
-@patch.object(csp, "time_feasible_path", side_effect=time_feasible_path_mock)
+@patch.object(csp, "time_feasible_cheapest_path", side_effect=time_feasible_path_mock)
 def test_get_path_attributes(patch_object):
     od_pairs = pd.DataFrame(
         {

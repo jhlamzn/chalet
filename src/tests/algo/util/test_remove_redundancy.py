@@ -42,6 +42,7 @@ def test_remove_redundancy(value, expected):
     solution = [1, 2, 3, 4]
     graph = nx.DiGraph()
     graph.add_edges_from([(1, 2), (2, 3), (3, 4)], **{Arcs.time: value, Arcs.break_time: value, Arcs.fuel_time: value})
+    nx.set_node_attributes(graph, dict(zip(nodes[Nodes.id], nodes[Nodes.cost])), Nodes.cost)
     subgraphs = [graph.copy(), graph.copy(), graph.copy()]
 
     actual = remove_redundancy(solution, nodes, subgraphs, od_pairs)

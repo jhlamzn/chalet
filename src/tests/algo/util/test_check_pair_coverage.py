@@ -67,6 +67,7 @@ def test_check_pair_coverage(cost, time, feasible, nodes_real, expected_covered,
     expected_od_pairs[OdPairs.covered] = expected_covered
     graph = nx.DiGraph()
     graph.add_edges_from([(1, 2), (2, 3), (3, 4)], **{Arcs.time: time, Arcs.break_time: time, Arcs.fuel_time: time})
+    nx.set_node_attributes(graph, dict(zip(nodes[Nodes.id], nodes[Nodes.cost])), Nodes.cost)
     subgraphs = [graph.copy(), graph.copy(), graph.copy()]
 
     station_capacities = check_pair_coverage(nodes, subgraphs, actual_od_pairs)

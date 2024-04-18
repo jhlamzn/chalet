@@ -46,7 +46,7 @@ class TestMipHelper(unittest.TestCase):
         path, cost = helper.get_cheapest_path(OD_PAIRS, 0, SUB_GRAPHS, NODES, [0])
         mock_csp_cheapest_path.assert_called_with(SUB_GRAPHS[0], 0, 1, 3.0, 5.0)
         self.assertListEqual(path, [0, 1])
-        self.assertEqual(cost, 5.0)
+        self.assertEqual(cost, 2)
 
     @patch("networkx.dfs_preorder_nodes", return_value=[0, 1])
     def test_add_separator_invalid_out_component(self, mock_preorder_nodes):
